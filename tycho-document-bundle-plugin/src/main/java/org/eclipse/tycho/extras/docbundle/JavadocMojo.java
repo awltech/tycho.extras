@@ -202,9 +202,11 @@ public class JavadocMojo extends AbstractMojo {
         runner.setDocletArtifactsResolver(docletArtifactsResolver);
 
         final GatherManifestVisitor gmv = new GatherManifestVisitor();
+        gmv.visit(this.session.getCurrentProject());
         visitProjects(this.session.getCurrentProject().getDependencies(), this.scopes, gmv);
 
         final GatherSourcesVisitor gsv = new GatherSourcesVisitor();
+        gsv.visit(this.session.getCurrentProject());
         visitProjects(this.session.getCurrentProject().getDependencies(), this.scopes, gsv);
 
         getLog().info(String.format("%s source folders", gsv.getSourceFolders().size()));
