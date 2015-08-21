@@ -69,7 +69,7 @@
 		<dependency>
 			<groupId>org.eclipse.tycho</groupId>
 			<artifactId>sisu-equinox-launching</artifactId>
-			<version>${project.version}</version>
+			<version>${tycho-version}</version>
 		</dependency>
 
         <dependency>
