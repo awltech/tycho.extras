@@ -14,6 +14,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
@@ -208,6 +209,19 @@ public class JavadocMojo extends AbstractMojo {
         if (gmv.manifestFiles.isEmpty()) {
             getLog().info("Skipped document generation : no manifest files found");
             return;
+        } else {
+            Iterator<File> manifestFileIterator = gmv.manifestFiles.iterator();
+            boolean findManifest = false;
+            while (manifestFileIterator.hasNext() && !findManifest) {
+                File manifestFile = manifestFileIterator.next();
+                if (manifestFile.canRead()) {
+                    findManifest = this.bundleReader.loadManifest(manifestFile).getManifestElements("Export-Package").length != 0;
+                }
+            }
+            if (!findManifest) {
+                getLog().info("Skipped document generation : no export-package found");
+                return;
+            }
         }
 
         final GatherSourcesVisitor gsv = new GatherSourcesVisitor();
