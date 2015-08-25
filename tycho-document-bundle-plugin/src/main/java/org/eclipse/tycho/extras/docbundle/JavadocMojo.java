@@ -30,6 +30,7 @@ import org.apache.maven.plugins.annotations.ResolutionScope;
 import org.apache.maven.project.MavenProject;
 import org.apache.maven.toolchain.ToolchainManager;
 import org.codehaus.plexus.util.FileUtils;
+import org.eclipse.osgi.util.ManifestElement;
 import org.eclipse.tycho.core.osgitools.BundleReader;
 
 /**
@@ -211,14 +212,16 @@ public class JavadocMojo extends AbstractMojo {
             return;
         } else {
             Iterator<File> manifestFileIterator = gmv.manifestFiles.iterator();
-            boolean findManifest = false;
-            while (manifestFileIterator.hasNext() && !findManifest) {
+            boolean findExportPackage = false;
+            while (manifestFileIterator.hasNext() && !findExportPackage) {
                 File manifestFile = manifestFileIterator.next();
                 if (manifestFile.canRead()) {
-                    findManifest = this.bundleReader.loadManifest(manifestFile).getManifestElements("Export-Package").length != 0;
+                    ManifestElement[] manifestElements = this.bundleReader.loadManifest(manifestFile)
+                            .getManifestElements("Export-Package");
+                    findExportPackage = manifestElements != null && manifestElements.length != 0;
                 }
             }
-            if (!findManifest) {
+            if (!findExportPackage) {
                 getLog().info("Skipped document generation : no export-package found");
                 return;
             }
