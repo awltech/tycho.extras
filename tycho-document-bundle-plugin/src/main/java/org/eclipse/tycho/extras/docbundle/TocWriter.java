@@ -100,21 +100,30 @@ public class TocWriter {
         doc.appendChild(toc);
         toc.setAttribute("label", this.options.getMainLabel());
 
-        final Element main = createTopic(doc, toc, this.options.getMainLabel(), "overview-summary.html");
-        final Element packages = createTopic(doc, main, "Packages", null);
-        createTopic(doc, main, "Constant Values", "constant-values.html");
-        createTopic(doc, main, "Deprecated List", "deprecated-list.html");
-
-        final LineNumberReader reader = new LineNumberReader(new FileReader(new File(this.javadocDir, "package-list")));
-        try {
-            String line;
-
-            while ((line = reader.readLine()) != null) {
-                createTopic(doc, packages, line, line.replace('.', '/') + "/package-summary.html");
+        if ((new File(this.javadocDir, "overview-summary.html")).exists()) {
+            final Element main = createTopic(doc, toc, this.options.getMainLabel(), "overview-summary.html");
+            final Element packages = createTopic(doc, main, "Packages", null);
+            if ((new File(this.javadocDir, "constant-values.html")).exists()) {
+                createTopic(doc, main, "Constant Values", "constant-values.html");
             }
-        } finally {
-            reader.close();
+            if ((new File(this.javadocDir, "deprecated-list.html")).exists()) {
+                createTopic(doc, main, "Deprecated List", "deprecated-list.html");
+            }
+            File PackageListfile = new File(this.javadocDir, "package-list");
+            if (PackageListfile.exists()) {
+                final LineNumberReader reader = new LineNumberReader(new FileReader(PackageListfile));
+                try {
+                    String line;
+
+                    while ((line = reader.readLine()) != null) {
+                        createTopic(doc, packages, line, line.replace('.', '/') + "/package-summary.html");
+                    }
+                } finally {
+                    reader.close();
+                }
+            }
         }
+
     }
 
     private Element createTopic(final Document doc, final Element parent, final String label, final String fileName)

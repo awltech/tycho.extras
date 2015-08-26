@@ -207,34 +207,9 @@ public class JavadocMojo extends AbstractMojo {
         gmv.visit(this.session.getCurrentProject());
         //visitProjects(this.session.getCurrentProject().getDependencies(), this.scopes, gmv);
 
-        if (gmv.manifestFiles.isEmpty()) {
-            getLog().info("Skipped document generation : no manifest files found");
-            return;
-        } else {
-            Iterator<File> manifestFileIterator = gmv.manifestFiles.iterator();
-            boolean findExportPackage = false;
-            while (manifestFileIterator.hasNext() && !findExportPackage) {
-                File manifestFile = manifestFileIterator.next();
-                if (manifestFile.canRead()) {
-                    ManifestElement[] manifestElements = this.bundleReader.loadManifest(manifestFile)
-                            .getManifestElements("Export-Package");
-                    findExportPackage = manifestElements != null && manifestElements.length != 0;
-                }
-            }
-            if (!findExportPackage) {
-                getLog().info("Skipped document generation : no export-package found");
-                return;
-            }
-        }
-
         final GatherSourcesVisitor gsv = new GatherSourcesVisitor();
         gsv.visit(this.session.getCurrentProject());
         //visitProjects(this.session.getCurrentProject().getDependencies(), this.scopes, gsv);
-
-        if (gsv.sourceFolders.isEmpty()) {
-            getLog().info("Skipped document generation : no source folders found");
-            return;
-        }
 
         getLog().info(String.format("%s source folders", gsv.getSourceFolders().size()));
         for (final File file : gsv.getSourceFolders()) {
@@ -258,6 +233,32 @@ public class JavadocMojo extends AbstractMojo {
         runner.setSourceFolders(gsv.getSourceFolders());
         runner.setClassPath(cp);
 
+        if (gmv.manifestFiles.isEmpty()) {
+            getLog().info("Skipped document generation : no manifest files found");
+        } else if (gsv.sourceFolders.isEmpty()) {
+            getLog().info("Skipped document generation : no source folders found");
+        } else {
+            Iterator<File> manifestFileIterator = gmv.manifestFiles.iterator();
+            boolean findExportPackage = false;
+            while (manifestFileIterator.hasNext() && !findExportPackage) {
+                File manifestFile = manifestFileIterator.next();
+                if (manifestFile.canRead()) {
+                    ManifestElement[] manifestElements = this.bundleReader.loadManifest(manifestFile)
+                            .getManifestElements("Export-Package");
+                    findExportPackage = manifestElements != null && manifestElements.length != 0;
+                }
+            }
+            if (!findExportPackage) {
+                getLog().info("Skipped document generation : no export-package found");
+            } else {
+                try {
+                    runner.run();
+                } catch (final Exception e) {
+                    throw new MojoExecutionException("Failed to run javadoc", e);
+                }
+            }
+        }
+
         // Setup toc writer
 
         final TocWriter tocWriter = new TocWriter();
@@ -267,7 +268,6 @@ public class JavadocMojo extends AbstractMojo {
         tocWriter.setLog(getLog());
 
         try {
-            runner.run();
             if (!skipTocGen) {
                 tocWriter.writeTo(this.tocFile);
             }
@@ -388,4 +388,5 @@ public class JavadocMojo extends AbstractMojo {
         }
         return null;
     }
+
 }
