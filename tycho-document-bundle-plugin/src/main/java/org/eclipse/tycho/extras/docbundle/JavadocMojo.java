@@ -18,14 +18,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
-import javax.xml.transform.OutputKeys;
-import javax.xml.transform.Transformer;
-import javax.xml.transform.TransformerFactory;
-import javax.xml.transform.dom.DOMSource;
-import javax.xml.transform.stream.StreamResult;
-
 import org.apache.maven.execution.MavenSession;
 import org.apache.maven.model.Dependency;
 import org.apache.maven.plugin.AbstractMojo;
@@ -40,8 +32,6 @@ import org.apache.maven.toolchain.ToolchainManager;
 import org.codehaus.plexus.util.FileUtils;
 import org.eclipse.osgi.util.ManifestElement;
 import org.eclipse.tycho.core.osgitools.BundleReader;
-import org.w3c.dom.Document;
-import org.w3c.dom.Element;
 
 /**
  * Create the javadoc based API reference for this bundle <br/>
@@ -219,14 +209,7 @@ public class JavadocMojo extends AbstractMojo {
         final GatherSourcesVisitor gsv = new GatherSourcesVisitor();
         //visitProjects(this.session.getCurrentProject().getDependencies(), this.scopes, gsv);
 
-        try {
-            this.generateParentIndex(this.session.getCurrentProject());
-        } catch (Exception e1) {
-            throw new MojoExecutionException("Failed to run generate index", e1);
-        }
-
         if (!this.canGenerateJavadoc(this.session.getCurrentProject(), gmv, gsv)) {
-            getLog().info("Skipped document generation");
             return;
         }
 
@@ -265,7 +248,6 @@ public class JavadocMojo extends AbstractMojo {
             if (!skipTocGen) {
                 tocWriter.writeTo(this.tocFile);
             }
-            this.copyJavadocToParent(runner, this.session.getCurrentProject());
         } catch (final Exception e) {
             throw new MojoExecutionException("Failed to run javadoc", e);
         }
@@ -369,60 +351,16 @@ public class JavadocMojo extends AbstractMojo {
         getLog().debug("Done processing: " + project);
     }
 
-    private void generateParentIndex(MavenProject mavenProject) throws Exception {
-        List<String> modules = mavenProject.getModules();
-        if (modules != null && !modules.isEmpty()) {
-            getLog().info("Generating parent index");
-            final File indexFile = new File(mavenProject.getBasedir(), "target/index.html");
-            indexFile.getParentFile().mkdirs();
-            final DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
-            final DocumentBuilder db = dbf.newDocumentBuilder();
-            final Document doc = db.newDocument();
-
-            final Element root = doc.createElement("html");
-            doc.appendChild(root);
-            final Element body = doc.createElement("body");
-            root.appendChild(body);
-            final Element section = doc.createElement("h1");
-            section.setTextContent("Documentation of " + mavenProject.getArtifactId());
-            body.appendChild(section);
-            final Element list = doc.createElement("ul");
-            body.appendChild(list);
-
-            for (String moduleName : mavenProject.getModules()) {
-                if (this.canGenerateJavadoc(this.findProject(mavenProject.getGroupId(), moduleName),
-                        new GatherManifestVisitor(), new GatherSourcesVisitor())) {
-                    Element item = doc.createElement("li");
-                    Element ref = doc.createElement("a");
-                    String commonPrefixString = mavenProject.getArtifactId().replace("parent", "");
-                    String moduleURL = moduleName.replace(commonPrefixString, "").replace(".", "/") + "/index.html";
-                    ref.setAttribute("href", moduleURL);
-                    ref.setTextContent(moduleName);
-                    item.appendChild(ref);
-                    list.appendChild(item);
-                }
-            }
-
-            final TransformerFactory transformerFactory = TransformerFactory.newInstance();
-            final Transformer transformer = transformerFactory.newTransformer();
-            transformer.setOutputProperty(OutputKeys.INDENT, "yes");
-            final DOMSource source = new DOMSource(doc);
-            final StreamResult result = new StreamResult(indexFile);
-
-            transformer.transform(source, result);
-        }
-    }
-
     private boolean canGenerateJavadoc(MavenProject mavenProject, GatherManifestVisitor gmv, GatherSourcesVisitor gsv) {
         gmv.visit(mavenProject);
         if (gmv.manifestFiles.isEmpty()) {
-            //getLog().info("Skipped document generation : no manifest files found");
+            getLog().info("Skipped document generation : no manifest files found");
             return false;
         }
 
         gsv.visit(mavenProject);
         if (gsv.sourceFolders.isEmpty()) {
-            //getLog().info("Skipped document generation : no source folders found");
+            getLog().info("Skipped document generation : no source folders found");
             return false;
         }
 
@@ -437,26 +375,10 @@ public class JavadocMojo extends AbstractMojo {
             }
         }
         if (!findExportPackage) {
-            //getLog().info("Skipped document generation : no export-package found");
+            getLog().info("Skipped document generation : no export-package found");
             return false;
         }
         return true;
-    }
-
-    private void copyJavadocToParent(JavadocRunner runner, MavenProject mavenProject) throws Exception {
-        MavenProject parentProject = mavenProject.getParent();
-        while (parentProject != null
-                && this.findProject(parentProject.getGroupId(), parentProject.getArtifactId()) != null) {
-            getLog().info("Copy the documentation to the parent " + parentProject.getArtifactId());
-            String commonPrefixString = parentProject.getArtifactId().replace("parent", "");
-            String moduleURL = mavenProject.getArtifactId().replace(commonPrefixString, "").replace(".", "/");
-            File parentDirectory = new File(parentProject.getBasedir() + "/target/" + moduleURL);
-            parentDirectory.getParentFile().mkdirs();
-            runner.setOutput(parentDirectory);
-            runner.run();
-            mavenProject = parentProject;
-            parentProject = mavenProject.getParent();
-        }
     }
 
     private MavenProject findProject(final String groupId, final String artifactId) {
